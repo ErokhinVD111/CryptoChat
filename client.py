@@ -19,7 +19,7 @@ class Client:
         self._user_name: str = input_user()
         self._client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-    async def send_message(self, message: str) -> bool:
+    def send_message(self, message: str) -> bool:
         message_header: str = f"{len(message):<{self._header_length}}"
         final_message = message_header + message
         if message:
@@ -28,17 +28,17 @@ class Client:
             return True
         return False
 
-    async def connect(self):
-        def send_self_username():
-            username_header: str = f"{len(self._user_name):<{self._header_length}}"
-            self._client_socket.send((username_header + self._user_name).encode("utf-8"))
+    def _send_self_username(self):
+        username_header: str = f"{len(self._user_name):<{self._header_length}}"
+        self._client_socket.send((username_header + self._user_name).encode("utf-8"))
 
+    def connect(self):
         self._client_socket.connect((self._server_ip, self._server_port))
         self._client_socket.setblocking(False)
-        send_self_username()
-        await self._begin_chat()
+        self._send_self_username()
+        self._begin_chat()
 
-    async def _receive_message(self):
+    def _receive_message(self):
         while True:
             username_header = self._client_socket.recv(self._header_length)
             if not len(username_header):
@@ -52,22 +52,20 @@ class Client:
             message_length = int(message_header.decode('utf-8').strip())
             message = self._client_socket.recv(message_length).decode('utf-8')
 
-            # Print message
-            # print(f'{username} > {message}')
-            await asyncio.to_thread(print, f'{username} > {message}')
+            print(f'{username} > {message}')
 
     async def _begin_chat(self):
-        async def create_new_message():
-            new_message: str = await asyncio.to_thread(input, f'{self._user_name} > ')
+        def create_new_message():
+            new_message: str = input(f'{self._user_name} > ')
             if new_message:
                 return new_message
             return ""
 
         while True:
             try:
-                new_message = await create_new_message()
-                await self.send_message(new_message)
-                await self._receive_message()
+                new_message = create_new_message()
+                self.send_message(new_message)
+                self._receive_message()
 
             except IOError as e:
                 if e.errno != errno.EAGAIN and e.errno != errno.EWOULDBLOCK:
