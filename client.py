@@ -78,11 +78,7 @@ class Client:
                 sys.exit()
 
 
-async def main():
+if __name__ == '__main__':
     config: Configuration = get_config()
     client = Client(config)
     client.connect()
-
-
-if __name__ == '__main__':
-    asyncio.run(main())
