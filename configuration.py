@@ -11,3 +11,9 @@ class Configuration:
     def print_all_configuration(self):
         print("server: ", self.server)
         print("message: ", self.message)
+
+
+def get_config() -> Configuration:
+    config_path: str = "config.ini"
+    config = Configuration(config_path)
+    return config
