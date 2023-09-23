@@ -81,7 +81,7 @@ class Client:
 async def main():
     config: Configuration = get_config()
     client = Client(config)
-    await client.connect()
+    client.connect()
 
 
 if __name__ == '__main__':
