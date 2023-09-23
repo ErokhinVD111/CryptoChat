@@ -1,7 +1,7 @@
 import configparser
 
 
-class ConfigurationLoader:
+class Configuration:
     def __init__(self, path: str):
         config = configparser.ConfigParser()
         config.read(path)
