@@ -1,3 +1,3 @@
 #!/bin/bash
 
-pip3 install -r ./Config/dependencies
+pip3 install -r ./dependencies
