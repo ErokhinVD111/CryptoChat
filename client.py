@@ -2,6 +2,7 @@ import asyncio
 import socket
 import errno
 import sys
+from asyncio import StreamReader, StreamWriter
 
 from configuration import Configuration, get_config
 
@@ -13,57 +14,56 @@ def input_user():
 
 class Client:
     def __init__(self, config: Configuration):
+        self._socket_writer = None
+        self._socket_reader = None
         self._server_ip: str = config.server["ip"]
         self._server_port: int = int(config.server["port"])
         self._header_length: int = int(config.message["header_length"])
         self._user_name: str = input_user()
-        self._client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     def send_message(self, message: str) -> bool:
-        message_header: str = f"{len(message):<{self._header_length}}"
-        final_message = message_header + message
+        enc_message = message.encode('utf-8')
+        message_header: bytes = f"{len(enc_message):<{self._header_length}}".encode('utf-8')
         if message:
-            encoded_message = final_message.encode('utf-8')
-            self._client_socket.send(encoded_message)
+            self._socket_writer.write(message_header + enc_message)
             return True
         return False
 
     def _send_self_username(self):
-        username_header: str = f"{len(self._user_name):<{self._header_length}}"
-        self._client_socket.send((username_header + self._user_name).encode("utf-8"))
+        enc_username: bytes = self._user_name.encode('utf-8')
+        enc_header_username: bytes = f"{len(enc_username):<{self._header_length}}".encode('utf-8')
+        self._client_socket.send(enc_header_username + enc_username)
 
     def connect(self):
-        self._client_socket.connect((self._server_ip, self._server_port))
-        self._client_socket.setblocking(False)
+        self._socket_reader, self._socket_writer = await asyncio.open_connection(self._server_ip, self._server_port)
+        await self._send_self_username()
+        await self._begin_chat()
+        await self._receive_message()
         self._send_self_username()
         self._begin_chat()
 
     def _receive_message(self):
+
+        def decode_message(username_header: bytes):
+            username_length = int(username_header.decode('utf-8').strip())
+            username = self._client_socket.recv(username_length).decode('utf-8')
+            message_header = self._client_socket.recv(self._header_length)
+            message_length = int(message_header.decode('utf-8').strip())
+            message = self._client_socket.recv(message_length).decode('utf-8')
+            print(f'{username} > {message}')
+
         while True:
-            username_header = self._client_socket.recv(self._header_length)
+            username_header: bytes = self._client_socket.recv(self._header_length)
             if not len(username_header):
                 print('Connection closed by the server')
                 sys.exit()
 
-            username_length = int(username_header.decode('utf-8').strip())
-            username = self._client_socket.recv(username_length).decode('utf-8')
+            decode_message(username_header)
 
-            message_header = self._client_socket.recv(self._header_length)
-            message_length = int(message_header.decode('utf-8').strip())
-            message = self._client_socket.recv(message_length).decode('utf-8')
-
-            print(f'{username} > {message}')
-
-    async def _begin_chat(self):
-        def create_new_message():
-            new_message: str = input(f'{self._user_name} > ')
-            if new_message:
-                return new_message
-            return ""
-
+    def _begin_chat(self):
         while True:
             try:
-                new_message = create_new_message()
+                new_message = input(f'{self._user_name} > ')
                 self.send_message(new_message)
                 self._receive_message()
 
