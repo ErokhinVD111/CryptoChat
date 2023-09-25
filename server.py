@@ -46,7 +46,6 @@ class Server:
             if not len(message_header):
                 return False
             message_length = int(message_header.decode('utf-8').strip())
-            print(decrypted_message[self._header_length: self._header_length + message_length])
             return {'header': message_header,
                     'data': decrypted_message[self._header_length: self._header_length + message_length]}
         except:
@@ -80,7 +79,7 @@ class Server:
                 if client_socket != notified_socket:
                     message_for_encryption = user['header'] + user['data'] + message['header'] + message['data']
                     encrypted_message = self._crypto_tools.encrypt_message(client_socket.getpeername(), message_for_encryption)
-                    print(encrypted_message)
+                    # print(encrypted_message)
                     client_socket.send(f"{len(encrypted_message):<{self._header_length}}".encode('utf-8') + encrypted_message)
             return True
 
