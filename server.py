@@ -1,8 +1,9 @@
 import socket
 import select
-from typing import  Any
+from typing import Any, Dict
 
 from configuration import Configuration, get_config
+from crypto_tools import CryptoTools
 
 
 class Server:
@@ -15,6 +16,7 @@ class Server:
         self._port = int(config.server["port"])
         self._header_length = int(config.message["header_length"])
         self._server_socket.bind((self._ip, self._port))
+        self._crypto_tools = CryptoTools()
 
     def start(self):
         self._server_socket.listen()
@@ -24,13 +26,13 @@ class Server:
         self._listen()
 
     def _receive_message(self, client_socket) -> bool | dict[str, Any]:
-        header_length = self._header_length
         try:
-            message_header = client_socket.recv(header_length)
-            if not len(message_header):
+            encrypted_header = client_socket.recv(self._header_length)
+
+            if not len(encrypted_header):
                 return False
-            message_length = int(message_header.decode('utf-8').strip())
-            return {'header': message_header, 'data': client_socket.recv(message_length)}
+            message_length = int(encrypted_header.decode('utf-8').strip())
+            return {'header': encrypted_header, 'data': client_socket.recv(message_length)}
         except:
             return False
 
@@ -42,23 +44,28 @@ class Server:
                 return False
             self._sockets_list.append(client_socket)
             self._clients[client_socket] = user
+            self._crypto_tools.add_client(client_address)
             print('Accepted new connection from {}:{}, username: {}'.format(*client_address,
-                                                                            user['data'].decode('utf-8')))
+                                                                            user['data'].decode()))
             return True
 
-        def handle_existing_connection(socket) -> bool:
-            message = self._receive_message(socket)
+        def handle_existing_connection(notified_socket: socket.socket) -> bool:
+            message = self._receive_message(notified_socket)
             if message is False:
                 print('Closed connection from: {}'.format(
-                    self._clients[socket]['data'].decode('utf-8')))
-                self._sockets_list.remove(socket)
-                del self._clients[socket]
+                    self._clients[notified_socket]['data'].decode('utf-8')))
+                self._sockets_list.remove(notified_socket)
+                del self._clients[notified_socket]
                 return False
-            user = self._clients[socket]
+
+            user = self._clients[notified_socket]
             print(f'Received message from {user["data"].decode("utf-8")}: {message["data"].decode("utf-8")}')
-            for client_socket in self._clients:
-                if client_socket != socket:
-                    client_socket.send(user['header'] + user['data'] + message['header'] + message['data'])
+            for client_socket in self._clients.keys():
+                if client_socket != notified_socket:
+                    message_for_encryption = user['header'] + user['data'] + message['header'] + message['data']
+                    encrypted_message = self._crypto_tools.encrypt_message(client_socket.getpeername(), message_for_encryption)
+                    print(encrypted_message)
+                    client_socket.send(f"{len(encrypted_message):<{self._header_length}}".encode('utf-8') + encrypted_message)
             return True
 
         def handle_exception_connection(socket):
