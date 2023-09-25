@@ -76,7 +76,7 @@ class Client:
                 message = decrypted_message[
                           self._header_length + username_length + self._header_length: self._header_length + username_length + self._header_length + message_length]
 
-                print(f'{username} > {message}')
+                print(f'{username.decode()} > {message.decode()}')
                 # if not len(username_header):
                 #     print('Connection closed by the server')
                 #     sys.exit()

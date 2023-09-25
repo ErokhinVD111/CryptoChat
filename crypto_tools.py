@@ -24,25 +24,21 @@ class CryptoTools:
             json.dump(json.dumps({f"{socket_info}": base64_key}), file_obj, indent=4)
 
     def encrypt_message(self, socket_info: tuple, message: bytes):
-        if self.client_cipher is None:
-            self.client_cipher = {}
-            with open(f"{socket_info}.json", 'r') as file_obj:
-                json_str = json.load(file_obj)
-                json_obj = json.loads(json_str)
+        self.client_cipher = {}
+        with open(f"{socket_info}.json", 'r') as file_obj:
+            json_str = json.load(file_obj)
+            json_obj = json.loads(json_str)
 
-            key = base64.b64decode(json_obj[f'{socket_info}'].encode('utf-8'))
-            self.client_cipher[socket_info] = Fernet(key)
-
+        key = base64.b64decode(json_obj[f'{socket_info}'].encode('utf-8'))
+        self.client_cipher[socket_info] = Fernet(key)
         return self.client_cipher[socket_info].encrypt(message)
 
     def decrypt_message(self, socket_info: tuple, message: bytes):
-        if self.client_cipher is None:
-            self.client_cipher = {}
-            with open(f"{socket_info}.json", 'r') as file_obj:
-                json_str = json.load(file_obj)
-                json_obj = json.loads(json_str)
+        self.client_cipher = {}
+        with open(f"{socket_info}.json", 'r') as file_obj:
+            json_str = json.load(file_obj)
+            json_obj = json.loads(json_str)
 
-            key = base64.b64decode(json_obj[f'{socket_info}'].encode('utf-8'))
-            self.client_cipher[socket_info] = Fernet(key)
-
+        key = base64.b64decode(json_obj[f'{socket_info}'].encode('utf-8'))
+        self.client_cipher[socket_info] = Fernet(key)
         return self.client_cipher[socket_info].decrypt(message)

@@ -25,21 +25,37 @@ class Server:
         print(f'Listening for connections on {self._ip}:{self._port}...')
         self._listen()
 
-    def _receive_message(self, client_socket) -> bool | dict[str, Any]:
+    def _receive_from_new_client(self, client_socket) -> bool | dict[str, Any]:
+        header_length = self._header_length
         try:
-            encrypted_header = client_socket.recv(self._header_length)
-
-            if not len(encrypted_header):
+            message_header = client_socket.recv(header_length)
+            if not len(message_header):
                 return False
-            message_length = int(encrypted_header.decode('utf-8').strip())
-            return {'header': encrypted_header, 'data': client_socket.recv(message_length)}
+            message_length = int(message_header.decode('utf-8').strip())
+            return {'header': message_header, 'data': client_socket.recv(message_length)}
+        except:
+            return False
+
+    def _receive_from_exist_client(self, client_socket) -> bool | dict[str, Any]:
+        try:
+            encrypted_header: bytes = client_socket.recv(self._header_length)
+            encrypted_message_length = int(encrypted_header.decode('utf-8').strip())
+            encrypted_message = client_socket.recv(encrypted_message_length)
+            decrypted_message = self._crypto_tools.decrypt_message(client_socket.getpeername(), encrypted_message)
+            message_header = decrypted_message[:self._header_length]
+            if not len(message_header):
+                return False
+            message_length = int(message_header.decode('utf-8').strip())
+            print(decrypted_message[self._header_length: self._header_length + message_length])
+            return {'header': message_header,
+                    'data': decrypted_message[self._header_length: self._header_length + message_length]}
         except:
             return False
 
     def _listen(self):
         def handle_new_connection() -> bool:
             client_socket, client_address = self._server_socket.accept()
-            user = self._receive_message(client_socket)
+            user = self._receive_from_new_client(client_socket)
             if user is False:
                 return False
             self._sockets_list.append(client_socket)
@@ -50,7 +66,7 @@ class Server:
             return True
 
         def handle_existing_connection(notified_socket: socket.socket) -> bool:
-            message = self._receive_message(notified_socket)
+            message = self._receive_from_exist_client(notified_socket)
             if message is False:
                 print('Closed connection from: {}'.format(
                     self._clients[notified_socket]['data'].decode('utf-8')))
